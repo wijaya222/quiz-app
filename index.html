@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <title>Kuis Leaderboard</title>
+  <style>
+    body { font-family: sans-serif; background: #f0f0f0; padding: 20px; }
+    .card { background: #fff; padding: 20px; border-radius: 10px; box-shadow: 0 0 10px rgba(0,0,0,0.1); margin-bottom: 20px; }
+    button { padding: 10px; margin-top: 10px; width: 100%; background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; }
+    button:hover { background: #0056b3; }
+    .score { font-size: 20px; color: green; text-align: center; }
+    .leaderboard { margin-top: 20px; background: #fff; padding: 15px; border-radius: 10px; }
+  </style>
+</head>
+<body>
+  <div class="card" id="startScreen">
+    <h2>Masukkan Nama Anda</h2>
+    <input type="text" id="username" placeholder="Nama lengkap" style="width:100%; padding:10px;"/>
+    <button onclick="startQuiz()">Mulai Kuis</button>
+  </div>
+
+  <div class="card" id="quizScreen" style="display:none;">
+    <div id="timer" style="text-align:right; color:red; font-weight:bold;">Sisa waktu: 60 detik</div>
+    <div id="quiz"></div>
+  </div>
+
+  <div id="resultScreen" class="card" style="display:none;"></div>
+
+  <audio id="correctSound" src="https://actions.google.com/sounds/v1/cartoon/clang_and_wobble.ogg"></audio>
+  <audio id="wrongSound" src="https://actions.google.com/sounds/v1/cartoon/boing.ogg"></audio>
+
+  <div id="leaderboard" class="leaderboard" style="display:none;">
+    <h3>🏆 Leaderboard</h3>
+    <ol id="rankList"></ol>
+  </div>
+
+<script>
+const allQuestions = [
+  { question: "Apa ibu kota Indonesia?", options: ["Bandung", "Jakarta", "Surabaya", "Medan"], answer: "Jakarta" },
+  { question: "Siapa presiden pertama Indonesia?", options: ["Soekarno", "Soeharto", "Jokowi", "Habibie"], answer: "Soekarno" },
+  { question: "Berapa hasil 5 + 3?", options: ["6", "8", "7", "9"], answer: "8" },
+  { question: "Lambang negara Indonesia adalah?", options: ["Harimau", "Garuda", "Elang", "Merpati"], answer: "Garuda" },
+  { question: "Pulau terbesar di Indonesia?", options: ["Jawa", "Sumatera", "Papua", "Kalimantan"], answer: "Kalimantan" },
+  { question: "Satuan kecepatan adalah?", options: ["km", "m/s", "m2", "liter"], answer: "m/s" },
+  { question: "Siapa pencipta lagu Indonesia Raya?", options: ["Wage Rudolf Supratman", "Soekarno", "Ki Hajar Dewantara", "WR Soepratman"], answer: "WR Soepratman" },
+  { question: "Pahlawan dari Aceh?", options: ["Cut Nyak Dien", "Kartini", "Pattimura", "Diponegoro"], answer: "Cut Nyak Dien" },
+  { question: "Ibu kota Jawa Tengah?", options: ["Semarang", "Solo", "Purwokerto", "Yogyakarta"], answer: "Semarang" },
+  { question: "Bentuk bangun yang punya 4 sisi sama?", options: ["Persegi", "Persegi panjang", "Segitiga", "Jajar genjang"], answer: "Persegi" },
+];
+
+let current = 0;
+let score = 0;
+let userName = "";
+let timeLeft = 60;
+let questions = [];
+
+function startQuiz() {
+  const input = document.getElementById("username").value.trim();
+  if (!input) return alert("Nama tidak boleh kosong!");
+  userName = input;
+  questions = [...allQuestions].sort(() => 0.5 - Math.random()).slice(0, 10);
+  document.getElementById("startScreen").style.display = "none";
+  document.getElementById("quizScreen").style.display = "block";
+  loadQuestion();
+  startTimer();
+}
+
+function startTimer() {
+  const t = setInterval(() => {
+    timeLeft--;
+    document.getElementById("timer").innerText = "Sisa waktu: " + timeLeft + " detik";
+    if (timeLeft <= 0) {
+      clearInterval(t);
+      endQuiz(true);
+    }
+  }, 1000);
+}
+
+function loadQuestion() {
+  const quiz = document.getElementById("quiz");
+  if (current >= questions.length) {
+    endQuiz(false);
+    return;
+  }
+  const q = questions[current];
+  quiz.innerHTML = `<h3>${current + 1}. ${q.question}</h3>`;
+  q.options.forEach(opt => {
+    const btn = document.createElement("button");
+    btn.textContent = opt;
+    btn.onclick = () => checkAnswer(opt);
+    quiz.appendChild(btn);
+  });
+}
+
+function checkAnswer(selected) {
+  const q = questions[current];
+  if (selected === q.answer) {
+    score++;
+    document.getElementById("correctSound").play();
+  } else {
+    document.getElementById("wrongSound").play();
+  }
+  current++;
+  loadQuestion();
+}
+
+function endQuiz(timeout) {
+  document.getElementById("quizScreen").style.display = "none";
+  const result = document.getElementById("resultScreen");
+  result.style.display = "block";
+  result.innerHTML = `<h2>${timeout ? "Waktu habis!" : "Kuis selesai!"}</h2>
+    <p class="score">${userName}, skor Anda: ${score}/10</p>`;
+  saveScore(userName, score);
+  showLeaderboard();
+}
+
+function saveScore(name, score) {
+  let board = JSON.parse(localStorage.getItem("leaderboard") || "[]");
+  board.push({ name, score });
+  board.sort((a, b) => b.score - a.score);
+  board = board.slice(0, 10); // top 10
+  localStorage.setItem("leaderboard", JSON.stringify(board));
+}
+
+function showLeaderboard() {
+  const board = JSON.parse(localStorage.getItem("leaderboard") || "[]");
+  const list = document.getElementById("rankList");
+  list.innerHTML = "";
+  board.forEach((entry, i) => {
+    const li = document.createElement("li");
+    li.textContent = `${i + 1}. ${entry.name} - ${entry.score}/10`;
+    list.appendChild(li);
+  });
+  document.getElementById("leaderboard").style.display = "block";
+}
+</script>
+</body>
+</html>
