@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Kuis Interaktif</title>
     <style>
-        /* CSS tetap sama seperti sebelumnya */
         :root {
             --primary: #4f46e5;
             --correct: #10b981;
@@ -13,30 +12,165 @@
             --neutral: #6b7280;
         }
         
-        body {
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        body {
             background-color: #f3f4f6;
             color: #111827;
+            min-height: 100vh;
             padding: 20px;
-            max-width: 800px;
-            margin: 0 auto;
         }
         
         .container {
+            max-width: 800px;
+            margin: 0 auto;
             background-color: white;
             border-radius: 10px;
             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
             padding: 30px;
-            margin-top: 20px;
         }
         
-        /* ... (CSS lainnya tetap sama) ... */
+        h1 {
+            color: var(--primary);
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        
+        .quiz-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        
+        .question-count {
+            font-weight: bold;
+            color: var(--neutral);
+        }
+        
+        .timer {
+            font-weight: bold;
+            color: var(--primary);
+            background-color: #eef2ff;
+            padding: 5px 10px;
+            border-radius: 20px;
+        }
+        
+        .timer.warning {
+            color: var(--incorrect);
+            background-color: #fee2e2;
+        }
+        
+        .question {
+            font-size: 1.2rem;
+            font-weight: 600;
+            margin-bottom: 20px;
+        }
+        
+        .options {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        
+        .option {
+            background-color: #f9fafb;
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 12px 15px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-weight: 500;
+        }
+        
+        .option:hover {
+            background-color: #f3f4f6;
+            border-color: #d1d5db;
+        }
+        
+        .results {
+            display: none;
+        }
+        
+        .score {
+            text-align: center;
+            font-size: 1.5rem;
+            margin-bottom: 20px;
+            font-weight: bold;
+        }
+        
+        .score-value {
+            color: var(--primary);
+        }
+        
+        .result-item {
+            margin-bottom: 15px;
+            padding: 15px;
+            border-radius: 8px;
+            background-color: #f9fafb;
+        }
+        
+        .result-question {
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+        
+        .user-answer.correct {
+            color: var(--correct);
+        }
+        
+        .user-answer.incorrect {
+            color: var(--incorrect);
+        }
+        
+        .correct-answer {
+            color: var(--correct);
+        }
+        
+        .restart-btn {
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            display: block;
+            margin: 30px auto 0;
+            transition: background-color 0.2s;
+        }
+        
+        .restart-btn:hover {
+            background-color: #4338ca;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: var(--neutral);
+        }
         
         .error-message {
             color: var(--incorrect);
             text-align: center;
             padding: 20px;
             font-weight: bold;
+        }
+        
+        @media (max-width: 600px) {
+            .container {
+                padding: 20px;
+            }
+            
+            .question {
+                font-size: 1.1rem;
+            }
         }
     </style>
 </head>
@@ -46,7 +180,7 @@
         
         <div id="quiz-container">
             <div class="quiz-header">
-                <div class="question-count">Pertanyaan 1 dari 25</div>
+                <div class="question-count">Pertanyaan 1 dari 30</div>
                 <div class="timer">Waktu: 5:00</div>
             </div>
             
@@ -58,7 +192,7 @@
         </div>
         
         <div id="results-container" class="results">
-            <div class="score">Skor Anda: <span class="score-value">0</span>/25</div>
+            <div class="score">Skor Anda: <span class="score-value">0</span>/30</div>
             
             <div id="results-list">
                 <!-- Hasil akan diisi oleh JavaScript -->
@@ -71,25 +205,169 @@
         <div id="error-message" class="error-message" style="display: none;"></div>
     </div>
 
+    <!-- Audio untuk efek suara -->
+    <audio id="correctSound" src="https://assets.mixkit.co/sfx/preview/mixkit-correct-answer-tone-2870.mp3" preload="auto"></audio>
+    <audio id="wrongSound" src="https://assets.mixkit.co/sfx/preview/mixkit-wrong-answer-fail-notification-946.mp3" preload="auto"></audio>
+    <audio id="clickSound" src="https://assets.mixkit.co/sfx/preview/mixkit-modern-click-box-check-1120.mp3" preload="auto"></audio>
+
     <script>
-        // Debugging: Tampilkan pesan saat script mulai berjalan
-        console.log("Script mulai berjalan...");
-        
-        // Database pertanyaan (pastikan ini tidak kosong)
+        // Database 30 pertanyaan
         const allQuestions = [
-            // Pastikan ada minimal 25 pertanyaan di sini
-            // Contoh 2 pertanyaan pertama:
+            // Soal 1-10
             {
                 question: "Apa ibu kota Indonesia?",
                 options: ["Bandung", "Jakarta", "Surabaya", "Medan"],
                 answer: "Jakarta"
             },
             {
-                question: "Planet terdekat dari Matahari?",
+                question: "Planet terdekat dari Matahari adalah?",
                 options: ["Venus", "Mars", "Merkurius", "Bumi"],
                 answer: "Merkurius"
             },
-            // ... (tambahkan minimal 23 pertanyaan lagi)
+            {
+                question: "Berapa banyak benua di dunia?",
+                options: ["5", "6", "7", "8"],
+                answer: "7"
+            },
+            {
+                question: "Siapa penemu teori relativitas?",
+                options: ["Isaac Newton", "Albert Einstein", "Galileo Galilei", "Stephen Hawking"],
+                answer: "Albert Einstein"
+            },
+            {
+                question: "Apa warna daun yang sehat?",
+                options: ["Merah", "Kuning", "Hijau", "Coklat"],
+                answer: "Hijau"
+            },
+            {
+                question: "Apa nama sungai terpanjang di dunia?",
+                options: ["Sungai Nil", "Sungai Amazon", "Sungai Yangtze", "Sungai Mississippi"],
+                answer: "Sungai Nil"
+            },
+            {
+                question: "Berapa jumlah sisi pada segi enam?",
+                options: ["4", "5", "6", "7"],
+                answer: "6"
+            },
+            {
+                question: "Apa nama ibukota Jepang?",
+                options: ["Osaka", "Kyoto", "Tokyo", "Hiroshima"],
+                answer: "Tokyo"
+            },
+            {
+                question: "Siapa penulis novel 'Laskar Pelangi'?",
+                options: ["Tere Liye", "Andrea Hirata", "Dee Lestari", "Pramoedya Ananta Toer"],
+                answer: "Andrea Hirata"
+            },
+            {
+                question: "Apa lambang kimia untuk emas?",
+                options: ["Ag", "Au", "Fe", "Hg"],
+                answer: "Au"
+            },
+            
+            // Soal 11-20
+            {
+                question: "Apa nama mata uang Jepang?",
+                options: ["Won", "Yuan", "Yen", "Ringgit"],
+                answer: "Yen"
+            },
+            {
+                question: "Berapa banyak warna dalam pelangi?",
+                options: ["5", "6", "7", "8"],
+                answer: "7"
+            },
+            {
+                question: "Apa nama gunung tertinggi di dunia?",
+                options: ["Kilimanjaro", "Everest", "Fuji", "Denali"],
+                answer: "Everest"
+            },
+            {
+                question: "Siapa presiden pertama Indonesia?",
+                options: ["Soeharto", "Soekarno", "Jokowi", "Megawati"],
+                answer: "Soekarno"
+            },
+            {
+                question: "Apa nama ibukota Australia?",
+                options: ["Sydney", "Melbourne", "Canberra", "Perth"],
+                answer: "Canberra"
+            },
+            {
+                question: "Berapa jumlah planet di tata surya?",
+                options: ["7", "8", "9", "10"],
+                answer: "8"
+            },
+            {
+                question: "Apa nama bahasa pemrograman untuk web?",
+                options: ["Java", "Python", "JavaScript", "C++"],
+                answer: "JavaScript"
+            },
+            {
+                question: "Siapa pencipta Facebook?",
+                options: ["Bill Gates", "Mark Zuckerberg", "Elon Musk", "Steve Jobs"],
+                answer: "Mark Zuckerberg"
+            },
+            {
+                question: "Apa nama satelit alami Bumi?",
+                options: ["Mars", "Venus", "Bulan", "Deimos"],
+                answer: "Bulan"
+            },
+            {
+                question: "Berapa hasil dari 7 x 8?",
+                options: ["48", "56", "64", "72"],
+                answer: "56"
+            },
+            
+            // Soal 21-30
+            {
+                question: "Apa nama ibukota Perancis?",
+                options: ["Berlin", "London", "Paris", "Roma"],
+                answer: "Paris"
+            },
+            {
+                question: "Siapa pelukis Mona Lisa?",
+                options: ["Vincent van Gogh", "Pablo Picasso", "Leonardo da Vinci", "Michelangelo"],
+                answer: "Leonardo da Vinci"
+            },
+            {
+                question: "Apa nama benua terkecil?",
+                options: ["Asia", "Afrika", "Australia", "Antartika"],
+                answer: "Australia"
+            },
+            {
+                question: "Berapa jumlah hari dalam setahun kabisat?",
+                options: ["364", "365", "366", "367"],
+                answer: "366"
+            },
+            {
+                question: "Apa nama buah yang memiliki duri di kulitnya?",
+                options: ["Durian", "Mangga", "Apel", "Pisang"],
+                answer: "Durian"
+            },
+            {
+                question: "Siapa penemu bola lampu?",
+                options: ["Thomas Edison", "Nikola Tesla", "Alexander Graham Bell", "Albert Einstein"],
+                answer: "Thomas Edison"
+            },
+            {
+                question: "Apa nama hewan terbesar di dunia?",
+                options: ["Gajah", "Paus Biru", "Jerapah", "Hiu Paus"],
+                answer: "Paus Biru"
+            },
+            {
+                question: "Berapa jumlah huruf dalam alfabet Inggris?",
+                options: ["24", "25", "26", "27"],
+                answer: "26"
+            },
+            {
+                question: "Apa nama ibukota Mesir?",
+                options: ["Kairo", "Teheran", "Dubai", "Istanbul"],
+                answer: "Kairo"
+            },
+            {
+                question: "Siapa penulis drama Romeo dan Juliet?",
+                options: ["Charles Dickens", "William Shakespeare", "Jane Austen", "Mark Twain"],
+                answer: "William Shakespeare"
+            }
         ];
 
         // Fungsi untuk menangani error
@@ -103,18 +381,19 @@
         }
 
         // Validasi database pertanyaan
-        if (!allQuestions || allQuestions.length < 25) {
-            showError("Database pertanyaan tidak lengkap (minimal 25 pertanyaan diperlukan)");
+        if (!allQuestions || allQuestions.length < 30) {
+            showError("Database pertanyaan tidak lengkap (minimal 30 pertanyaan diperlukan)");
             throw new Error("Database pertanyaan tidak lengkap");
         }
 
-        // Fungsi untuk memilih pertanyaan acak
+        // Fungsi untuk memilih pertanyaan acak (semua 30 pertanyaan)
         function getRandomQuestions(array, num) {
             try {
                 if (!array || array.length === 0) {
                     throw new Error("Array pertanyaan kosong");
                 }
                 
+                // Acak urutan pertanyaan
                 const shuffled = [...array].sort(() => 0.5 - Math.random());
                 return shuffled.slice(0, num);
             } catch (error) {
@@ -123,23 +402,194 @@
             }
         }
 
-        // ... (kode selanjutnya tetap sama seperti sebelumnya)
-        // Pastikan semua fungsi lain (startQuiz, showQuestion, dll) ada
-        
-        // Mulai kuis dengan penanganan error
-        try {
-            window.addEventListener('DOMContentLoaded', () => {
-                setTimeout(() => {
-                    try {
-                        startQuiz();
-                    } catch (error) {
-                        showError("Gagal memulai kuis: " + error.message);
-                    }
-                }, 1000);
-            });
-        } catch (error) {
-            showError("Error inisialisasi: " + error.message);
+        // Elemen DOM
+        const quizContainer = document.getElementById('quiz-container');
+        const resultsContainer = document.getElementById('results-container');
+        const loadingElement = document.getElementById('loading');
+        const questionCountElement = document.querySelector('.question-count');
+        const timerElement = document.querySelector('.timer');
+        const questionElement = document.querySelector('.question');
+        const optionsContainer = document.querySelector('.options');
+        const scoreElement = document.querySelector('.score-value');
+        const resultsListElement = document.getElementById('results-list');
+        const restartButton = document.querySelector('.restart-btn');
+
+        // Elemen audio
+        const correctSound = document.getElementById('correctSound');
+        const wrongSound = document.getElementById('wrongSound');
+        const clickSound = document.getElementById('clickSound');
+
+        // Variabel state
+        let currentQuestionIndex = 0;
+        let score = 0;
+        let timer;
+        let timeLeft = 300; // 5 menit = 300 detik
+        let selectedQuestions = [];
+        let userAnswers = [];
+
+        // Fungsi untuk memainkan suara
+        function playSound(sound) {
+            sound.currentTime = 0;
+            sound.play().catch(e => console.log("Autoplay prevented: ", e));
         }
+
+        // Fungsi untuk memulai kuis
+        function startQuiz() {
+            loadingElement.style.display = 'none';
+            quizContainer.style.display = 'block';
+            resultsContainer.style.display = 'none';
+            
+            // Pilih 30 pertanyaan acak dari database
+            selectedQuestions = getRandomQuestions(allQuestions, 30);
+            
+            // Reset state
+            currentQuestionIndex = 0;
+            score = 0;
+            timeLeft = 300;
+            userAnswers = [];
+            
+            // Mulai timer
+            startTimer();
+            
+            // Tampilkan pertanyaan pertama
+            showQuestion();
+        }
+
+        // Fungsi untuk menampilkan pertanyaan
+        function showQuestion() {
+            const currentQuestion = selectedQuestions[currentQuestionIndex];
+            
+            // Update tampilan
+            questionCountElement.textContent = `Pertanyaan ${currentQuestionIndex + 1} dari 30`;
+            questionElement.textContent = currentQuestion.question;
+            
+            // Kosongkan opsi sebelumnya
+            optionsContainer.innerHTML = '';
+            
+            // Tambahkan opsi baru
+            currentQuestion.options.forEach(option => {
+                const optionElement = document.createElement('div');
+                optionElement.classList.add('option');
+                optionElement.textContent = option;
+                optionElement.addEventListener('click', () => {
+                    playSound(clickSound);
+                    selectAnswer(option);
+                });
+                optionsContainer.appendChild(optionElement);
+            });
+        }
+
+        // Fungsi untuk memilih jawaban
+        function selectAnswer(selectedOption) {
+            const currentQuestion = selectedQuestions[currentQuestionIndex];
+            const isCorrect = selectedOption === currentQuestion.answer;
+            
+            // Mainkan suara berdasarkan jawaban
+            if (isCorrect) {
+                playSound(correctSound);
+                score++;
+            } else {
+                playSound(wrongSound);
+            }
+            
+            // Simpan jawaban pengguna
+            userAnswers.push({
+                question: currentQuestion.question,
+                selected: selectedOption,
+                correct: currentQuestion.answer,
+                isCorrect: isCorrect
+            });
+            
+            // Lanjut ke pertanyaan berikutnya atau selesaikan kuis
+            if (currentQuestionIndex < selectedQuestions.length - 1) {
+                currentQuestionIndex++;
+                showQuestion();
+            } else {
+                finishQuiz();
+            }
+        }
+
+        // Fungsi untuk memulai timer
+        function startTimer() {
+            clearInterval(timer);
+            updateTimerDisplay();
+            
+            timer = setInterval(() => {
+                timeLeft--;
+                updateTimerDisplay();
+                
+                if (timeLeft <= 0) {
+                    clearInterval(timer);
+                    finishQuiz();
+                }
+            }, 1000);
+        }
+
+        // Fungsi untuk memperbarui tampilan timer
+        function updateTimerDisplay() {
+            const minutes = Math.floor(timeLeft / 60);
+            const seconds = timeLeft % 60;
+            timerElement.textContent = `Waktu: ${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
+            
+            // Ubah warna saat waktu hampir habis (kurang dari 1 menit)
+            if (timeLeft <= 60) {
+                timerElement.classList.add('warning');
+            } else {
+                timerElement.classList.remove('warning');
+            }
+        }
+
+        // Fungsi untuk menyelesaikan kuis
+        function finishQuiz() {
+            clearInterval(timer);
+            
+            // Sembunyikan kontainer kuis
+            quizContainer.style.display = 'none';
+            
+            // Tampilkan hasil
+            resultsContainer.style.display = 'block';
+            scoreElement.textContent = `${score}`;
+            
+            // Tampilkan detail jawaban
+            resultsListElement.innerHTML = '';
+            userAnswers.forEach((answer, index) => {
+                const resultItem = document.createElement('div');
+                resultItem.classList.add('result-item');
+                
+                const questionElement = document.createElement('div');
+                questionElement.classList.add('result-question');
+                questionElement.textContent = `${index + 1}. ${answer.question}`;
+                
+                const userAnswerElement = document.createElement('div');
+                userAnswerElement.classList.add('user-answer');
+                userAnswerElement.classList.add(answer.isCorrect ? 'correct' : 'incorrect');
+                userAnswerElement.textContent = `Jawaban Anda: ${answer.selected}`;
+                
+                const correctAnswerElement = document.createElement('div');
+                correctAnswerElement.classList.add('correct-answer');
+                correctAnswerElement.textContent = `Jawaban benar: ${answer.correct}`;
+                
+                resultItem.appendChild(questionElement);
+                resultItem.appendChild(userAnswerElement);
+                resultItem.appendChild(correctAnswerElement);
+                resultsListElement.appendChild(resultItem);
+            });
+        }
+
+        // Event listener untuk tombol restart
+        restartButton.addEventListener('click', startQuiz);
+
+        // Mulai kuis saat halaman dimuat
+        window.addEventListener('DOMContentLoaded', () => {
+            // Simulasikan loading
+            setTimeout(() => {
+                try {
+                    startQuiz();
+                } catch (error) {
+                    showError("Gagal memulai kuis: " + error.message);
+                }
+            }, 1000);
+        });
     </script>
 </body>
 </html>
